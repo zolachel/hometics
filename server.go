@@ -19,7 +19,12 @@ type Pair struct {
 }
 
 //PairDeviceHandler ...
-func PairDeviceHandler(w http.ResponseWriter, r *http.Request) {
+type PairDeviceHandler struct {
+	createPairDevice CreatePairDevice
+}
+
+//ServeHTTP ...
+func (ph *PairDeviceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var p Pair
 
 	err := json.NewDecoder(r.Body).Decode(&p)
@@ -31,19 +36,7 @@ func PairDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(err.Error())
-		return
-	}
-
-	defer db.Close()
-
-	_, err = db.Exec("INSERT INTO pairs VALUES ($1,$2);", p.DeviceID, p.UserID)
-
+	err = ph.createPairDevice(p)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(err.Error())
@@ -54,11 +47,33 @@ func PairDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"active"}`))
 }
 
+//CreatePairDevice ...
+type CreatePairDevice func(p Pair) error
+
+func createPairDevice(p Pair) error {
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
+
+	if err != nil {
+		log.Fatal("connect to database error", err)
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec("INSERT INTO pairs VALUES ($1,$2);", p.DeviceID, p.UserID)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	fmt.Println("hello hometic : I'm Gopher!!")
 
 	r := mux.NewRouter()
-	r.HandleFunc("/pair-device", PairDeviceHandler).Methods(http.MethodPost)
+	r.Handle("/pair-device", &PairDeviceHandler{createPairDevice: createPairDevice}).Methods(http.MethodPost)
 
 	addr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))
 
