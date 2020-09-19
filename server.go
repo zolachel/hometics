@@ -31,7 +31,8 @@ func PairDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
