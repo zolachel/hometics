@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,8 +9,10 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 )
 
+//Pair ...
 type Pair struct {
 	DeviceID int64
 	UserID   int64
@@ -27,6 +30,24 @@ func PairDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer r.Body.Close()
+
+	db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
+		return
+	}
+
+	defer db.Close()
+
+	_, err = db.Exec("INSERT INTO pairs VALUES ($1,$2);", p.DeviceID, p.UserID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(err.Error())
+		return
+	}
 
 	fmt.Printf("pair: %#v\n", p)
 	w.Write([]byte(`{"status":"active"}`))
