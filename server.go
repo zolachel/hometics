@@ -45,6 +45,7 @@ func PairDeviceHandler(device Device) http.HandlerFunc {
 	}
 }
 
+//Device ...
 type Device interface {
 	Pair(p Pair) error
 }
@@ -52,10 +53,12 @@ type Device interface {
 //CreatePairDeviceFunc ...
 type CreatePairDeviceFunc func(p Pair) error
 
-type createPairDevice struct {
+//Pair ...
+func (fn CreatePairDeviceFunc) Pair(p Pair) error {
+	return fn(p)
 }
 
-func (createPairDevice) Pair(p Pair) error {
+func createPairDevice(p Pair) error {
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
 
@@ -78,7 +81,7 @@ func main() {
 	fmt.Println("hello hometic : I'm Gopher!!")
 
 	r := mux.NewRouter()
-	r.Handle("/pair-device", PairDeviceHandler(createPairDevice{})).Methods(http.MethodPost)
+	r.Handle("/pair-device", PairDeviceHandler(CreatePairDeviceFunc(createPairDevice))).Methods(http.MethodPost)
 
 	addr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))
 
