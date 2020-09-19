@@ -24,9 +24,9 @@ func TestCreatePairDevice(t *testing.T) {
 		}
 	*/
 
-	handler := &PairDeviceHandler{createPairDevice: func(p Pair) error {
+	handler := PairDeviceHandler(func(p Pair) error {
 		return nil
-	}}
+	})
 
 	handler.ServeHTTP(rec, req)
 
