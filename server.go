@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"go.uber.org/zap"
 )
 
 //Pair ...
@@ -18,10 +19,42 @@ type Pair struct {
 	UserID   int64
 }
 
+func main() {
+	fmt.Println("hello hometic : I'm Gopher!!")
+
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
+
+	if err != nil {
+		log.Fatal("connect to database error", err)
+	}
+
+	defer db.Close()
+
+	r := mux.NewRouter()
+	r.Handle("/pair-device", PairDeviceHandler(NewCreatePairDevice(db))).Methods(http.MethodPost)
+
+	addr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))
+
+	fmt.Println("addr:", addr)
+
+	server := http.Server{
+		Addr:    addr,
+		Handler: r,
+	}
+
+	log.Println("staring...")
+	log.Fatal(server.ListenAndServe())
+}
+
 //PairDeviceHandler ...
 func PairDeviceHandler(device Device) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		l := zap.NewExample()
+		l = l.With(zap.Namespace("hometic"), zap.String("I'm", "gopher"))
+		l.Info("pair-device")
+
 		var p Pair
 
 		err := json.NewDecoder(r.Body).Decode(&p)
@@ -65,32 +98,4 @@ func NewCreatePairDevice(db *sql.DB) CreatePairDeviceFunc {
 		return err
 
 	}
-}
-
-func main() {
-	fmt.Println("hello hometic : I'm Gopher!!")
-
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
-
-	if err != nil {
-		log.Fatal("connect to database error", err)
-	}
-
-	defer db.Close()
-
-	r := mux.NewRouter()
-	r.Handle("/pair-device", PairDeviceHandler(NewCreatePairDevice(db))).Methods(http.MethodPost)
-
-	addr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))
-
-	fmt.Println("addr:", addr)
-
-	server := http.Server{
-		Addr:    addr,
-		Handler: r,
-	}
-
-	log.Println("staring...")
-	log.Fatal(server.ListenAndServe())
 }
