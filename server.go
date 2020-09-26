@@ -16,11 +16,18 @@ import (
 func main() {
 	fmt.Println("hello hometic : I'm Gopher!!")
 
+	if err := run(); err != nil {
+		log.Fatal("can't start application", err)
+	}
+}
+
+func run() error {
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	//db, err := sql.Open("postgres", "postgres://gosctihb:CqOz6dVYlooEBPY4quY9KHvySa2OmADZ@arjuna.db.elephantsql.com:5432/gosctihb")
 
 	if err != nil {
-		log.Fatal("connect to database error", err)
+		//log.Fatal("connect to database error", err)
+		return err
 	}
 
 	defer db.Close()
@@ -41,7 +48,7 @@ func main() {
 	}
 
 	log.Println("staring...")
-	log.Fatal(server.ListenAndServe())
+	return server.ListenAndServe()
 }
 
 //CustomResponseWriter ...
@@ -115,8 +122,13 @@ func (fn CreatePairDeviceFunc) Pair(p Pair) error {
 	return fn(p)
 }
 
+//DB ...
+type DB interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
 //NewCreatePairDevice ...
-func NewCreatePairDevice(db *sql.DB) CreatePairDeviceFunc {
+func NewCreatePairDevice(db DB) CreatePairDeviceFunc {
 	return func(p Pair) error {
 		_, err := db.Exec("INSERT INTO pairs VALUES ($1,$2);", p.DeviceID, p.UserID)
 		return err
