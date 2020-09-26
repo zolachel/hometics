@@ -29,7 +29,7 @@ func main() {
 
 	r.Use(logger.Middleware)
 
-	r.Handle("/pair-device", PairDeviceHandler(NewCreatePairDevice(db))).Methods(http.MethodPost)
+	r.Handle("/pair-device", CustomHandlerFunc(PairDeviceHandler(NewCreatePairDevice(db)))).Methods(http.MethodPost)
 
 	addr := fmt.Sprintf("0.0.0.0:%s", os.Getenv("PORT"))
 
@@ -44,19 +44,42 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-//PairDeviceHandler ...
-func PairDeviceHandler(device Device) http.HandlerFunc {
+//CustomResponseWriter ...
+type CustomResponseWriter interface {
+	JSON(statusCode int, data interface{})
+}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+//CustomHandlerFunc ...
+type CustomHandlerFunc func(CustomResponseWriter, *http.Request)
+
+//ServerHTTP ...
+func (handler CustomHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	handler(&JSONResponseWriter{w}, r)
+}
+
+//JSONResponseWriter ...
+type JSONResponseWriter struct {
+	http.ResponseWriter
+}
+
+//JSON ...
+func (w *JSONResponseWriter) JSON(statusCode int, data interface{}) {
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(data)
+}
+
+//PairDeviceHandler ...
+func PairDeviceHandler(device Device) func(w CustomResponseWriter, r *http.Request) {
+
+	return func(w CustomResponseWriter, r *http.Request) {
 		logger.L(r.Context()).Info("pair-device")
 
 		var p Pair
 
 		err := json.NewDecoder(r.Body).Decode(&p)
 		if err != nil {
-			w.Header().Set("content-type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(err.Error())
+			w.JSON(http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -65,14 +88,11 @@ func PairDeviceHandler(device Device) http.HandlerFunc {
 
 		err = device.Pair(p)
 		if err != nil {
-			w.Header().Set("content-type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(err.Error())
+			w.JSON(http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		w.Header().Set("content-type", "application/json")
-		w.Write([]byte(`{"status":"active"}`))
+		w.JSON(http.StatusOK, map[string]interface{}{"status": "active"})
 	}
 }
 
